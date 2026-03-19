@@ -14,12 +14,30 @@ import (
 	"github.com/elastic/go-ucfg/yaml"
 )
 
+type RequiresTestOverride struct {
+	Package string `config:"package"`
+	Source  string `config:"source"`
+}
+
 type globalTestConfig struct {
 	Asset    GlobalRunnerTestConfig `config:"asset"`
 	Pipeline GlobalRunnerTestConfig `config:"pipeline"`
 	Policy   GlobalRunnerTestConfig `config:"policy"`
 	Static   GlobalRunnerTestConfig `config:"static"`
 	System   GlobalRunnerTestConfig `config:"system"`
+	Requires []RequiresTestOverride `config:"requires"`
+}
+
+// RequiresSourceOverrides returns a map of package name → absolute source path
+// for all requires entries that have a source field set.
+func (c *globalTestConfig) RequiresSourceOverrides(packageRoot string) map[string]string {
+	overrides := make(map[string]string, len(c.Requires))
+	for _, r := range c.Requires {
+		if r.Source != "" {
+			overrides[r.Package] = filepath.Join(packageRoot, r.Source)
+		}
+	}
+	return overrides
 }
 
 type GlobalRunnerTestConfig struct {

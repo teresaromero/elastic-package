@@ -1,0 +1,32 @@
+inputs:
+    - data_stream:
+        namespace: ep
+      meta:
+        package:
+            name: with_input_package_requires
+      name: test-default-with_input_package_requires
+      streams:
+        - data_stream:
+            dataset: with_input_package_requires.test_logs
+            type: logs
+          exclude_files:
+            - .gz$
+          paths:
+            - /var/log/test.log
+      type: logfile
+      use_output: default
+output_permissions:
+    default:
+        _elastic_agent_checks:
+            cluster:
+                - monitor
+        _elastic_agent_monitoring:
+            indices: []
+        uuid-for-permissions-on-related-indices:
+            indices:
+                - names:
+                    - logs-with_input_package_requires.test_logs-ep
+                  privileges:
+                    - auto_configure
+                    - create_doc
+secret_references: []

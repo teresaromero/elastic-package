@@ -22,14 +22,16 @@ type eprClient interface {
 
 // RequiredInputsResolver is a helper for resolving required input packages.
 type RequiredInputsResolver struct {
-	eprClient eprClient
+	eprClient       eprClient
+	sourceOverrides map[string]string // package name → local path, overrides registry download
 }
 
-// RequiredInputsResolver creates a new RequiredInputsResolver.
-// It creates a temporary directory for input packages and returns a new RequiredInputsResolver.
-func NewRequiredInputsResolver(eprClient eprClient) (*RequiredInputsResolver, error) {
+// NewRequiredInputsResolver creates a new RequiredInputsResolver.
+// sourceOverrides maps package name to a local source path; pass nil to always download from registry.
+func NewRequiredInputsResolver(eprClient eprClient, sourceOverrides map[string]string) (*RequiredInputsResolver, error) {
 	return &RequiredInputsResolver{
-		eprClient: eprClient,
+		eprClient:       eprClient,
+		sourceOverrides: sourceOverrides,
 	}, nil
 }
 
@@ -88,9 +90,19 @@ func (r *RequiredInputsResolver) mapRequiredInputPackagesPaths(manifestInputRequ
 	errs := make([]error, 0, len(manifestInputRequires))
 	for _, inputDependency := range manifestInputRequires {
 		if _, ok := inputPkgPaths[inputDependency.Package]; ok {
-			// skip if already downloaded
+			// skip if already resolved
 			continue
 		}
+
+		// Use local source override if available (e.g. from _dev/test/config.yml)
+		if r.sourceOverrides != nil {
+			if sourcePath, ok := r.sourceOverrides[inputDependency.Package]; ok {
+				logger.Debugf("Using local source for input package %q at %s", inputDependency.Package, sourcePath)
+				inputPkgPaths[inputDependency.Package] = sourcePath
+				continue
+			}
+		}
+
 		path, err := r.eprClient.DownloadPackage(inputDependency.Package, inputDependency.Version, tmpDir)
 		if err != nil {
 			// all required input packages must be downloaded successfully

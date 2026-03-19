@@ -51,7 +51,7 @@ policy_templates:
 	err := os.WriteFile(path.Join(buildPackageRoot, "manifest.yml"), manifest, 0644)
 	require.NoError(t, err)
 
-	resolver, err := NewRequiredInputsResolver(fakeEprClient)
+	resolver, err := NewRequiredInputsResolver(fakeEprClient, nil)
 	require.NoError(t, err)
 
 	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
@@ -83,7 +83,7 @@ func TestBundleInputPackageTemplates_NoManifest(t *testing.T) {
 	}
 	buildPackageRoot := t.TempDir()
 
-	resolver, err := NewRequiredInputsResolver(fakeEprClient)
+	resolver, err := NewRequiredInputsResolver(fakeEprClient, nil)
 	require.NoError(t, err)
 
 	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
@@ -107,7 +107,7 @@ type: input
 	err := os.WriteFile(path.Join(buildPackageRoot, "manifest.yml"), manifest, 0644)
 	require.NoError(t, err)
 
-	resolver, err := NewRequiredInputsResolver(fakeEprClient)
+	resolver, err := NewRequiredInputsResolver(fakeEprClient, nil)
 	require.NoError(t, err)
 
 	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
@@ -132,7 +132,7 @@ policy_templates:
 	err := os.WriteFile(path.Join(buildPackageRoot, "manifest.yml"), manifest, 0644)
 	require.NoError(t, err)
 
-	resolver, err := NewRequiredInputsResolver(fakeEprClient)
+	resolver, err := NewRequiredInputsResolver(fakeEprClient, nil)
 	require.NoError(t, err)
 
 	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
@@ -143,4 +143,46 @@ policy_templates:
 	updatedManifest, err := packages.ReadPackageManifestBytes(updatedManifestBytes)
 	require.NoError(t, err)
 	require.Nil(t, updatedManifest.Requires)
+}
+
+func TestBundleInputPackageTemplates_SourceOverride(t *testing.T) {
+	fakeInputPath := createFakeInputHelper(t)
+
+	downloadCalled := false
+	fakeEprClient := &fakeEprClient{
+		downloadPackageFunc: func(packageName string, packageVersion string, tmpDir string) (string, error) {
+			downloadCalled = true
+			return "", fmt.Errorf("should not download when source override is set")
+		},
+	}
+	buildPackageRoot := t.TempDir()
+
+	manifest := []byte(`name: test-package
+version: 0.1.0
+type: integration
+requires:
+  input:
+    - package: sql
+      version: 0.1.0
+policy_templates:
+  - inputs:
+      - package: sql
+      - type: logs
+`)
+	err := os.WriteFile(path.Join(buildPackageRoot, "manifest.yml"), manifest, 0644)
+	require.NoError(t, err)
+
+	sourceOverrides := map[string]string{
+		"sql": fakeInputPath,
+	}
+	resolver, err := NewRequiredInputsResolver(fakeEprClient, sourceOverrides)
+	require.NoError(t, err)
+
+	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	require.NoError(t, err)
+
+	assert.False(t, downloadCalled, "DownloadPackage should not be called when source override is set")
+
+	_, err = os.ReadFile(path.Join(buildPackageRoot, "agent", "input", "sql-input.yml.hbs"))
+	require.NoError(t, err)
 }
