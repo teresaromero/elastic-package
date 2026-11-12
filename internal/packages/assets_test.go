@@ -13,10 +13,7 @@ import (
 )
 
 func TestLoadPackageAssets_Workflows(t *testing.T) {
-	// TODO: move this fixture to test/packages/parallel/workflows once the package-spec
-	// release that allows kibana/workflow is bumped in go.mod. Until then, CI would fail
-	// running check and build on it, so it lives in testdata, which CI doesn't build.
-	packageRoot := "testdata/workflows"
+	packageRoot := "../../test/packages/parallel/workflows"
 
 	assets, err := LoadPackageAssets(packageRoot)
 	require.NoError(t, err)
